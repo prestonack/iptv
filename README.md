@@ -1,100 +1,80 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>M3U8 Playlist Player</title>
+  <meta charset="UTF-8"/>
+  <title>Working M3U8 Playlist</title>
   <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
-    #playlist { max-height: 200px; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
-    #playlist li { cursor: pointer; padding: 5px; }
-    #playlist li.active { background-color: #d0f0ff; font-weight: bold; }
+    body { font-family: sans-serif; margin: 20px; }
+    #playlist { max-height: 120px; overflow-y: auto; border: 1px solid #ccc; padding: 8px; }
+    #playlist li { padding: 6px; cursor: pointer; }
+    #playlist li.active { background: #cde; font-weight: bold; }
   </style>
 </head>
 <body>
-  <h1>M3U8 Playlist Player</h1>
-  
-  <input type="text" id="playlistUrl" placeholder="Enter .m3u URL (list of .m3u8 streams)" size="60" />
-  <button onclick="loadPlaylist()">Load Playlist</button>
 
-  <video id="video" width="640" height="360" controls autoplay></video>
+<h2>Working M3U8 Playlist Player</h2>
 
-  <h3>Playlist</h3>
-  <ul id="playlist"></ul>
+<video id="video" width="640" height="360" controls autoplay muted></video>
 
-  <script>
-    let streams = [];
-    let currentIndex = 0;
-    let hls;
+<ul id="playlist"></ul>
 
-    const video = document.getElementById('video');
-    const playlistElement = document.getElementById('playlist');
+<script>
+  const streams = [
+    "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8",
+    "https://test-streams.mux.dev/tsfiles/hls/playlist.m3u8"
+  ];
 
-    async function loadPlaylist() {
-      const url = document.getElementById('playlistUrl').value.trim();
-      if (!url) return alert('Please enter a valid .m3u URL');
+  const video = document.getElementById('video');
+  const listEl = document.getElementById('playlist');
+  let current = 0;
+  let hls = null;
 
-      try {
-        const res = await fetch(url);
-        const text = await res.text();
-
-        streams = text.split('\n')
-          .map(line => line.trim())
-          .filter(line => line && !line.startsWith('#') && line.endsWith('.m3u8'));
-
-        if (streams.length === 0) {
-          alert('No .m3u8 URLs found.');
-          return;
-        }
-
-        renderPlaylist();
-        playStream(0);
-      } catch (err) {
-        alert('Failed to load playlist: ' + err.message);
-      }
-    }
-
-    function renderPlaylist() {
-      playlistElement.innerHTML = '';
-      streams.forEach((url, i) => {
-        const li = document.createElement('li');
-        li.textContent = url;
-        li.onclick = () => playStream(i);
-        if (i === currentIndex) li.classList.add('active');
-        playlistElement.appendChild(li);
-      });
-    }
-
-    function playStream(index) {
-      if (index < 0 || index >= streams.length) return;
-      currentIndex = index;
-
-      const url = streams[index];
-      const items = playlistElement.querySelectorAll('li');
-      items.forEach((li, i) => li.classList.toggle('active', i === index));
-
-      if (hls) {
-        hls.destroy();
-      }
-
-      if (Hls.isSupported()) {
-        hls = new Hls();
-        hls.loadSource(url);
-        hls.attachMedia(video);
-        hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
-      } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = url;
-        video.play();
-      } else {
-        alert('This browser does not support HLS playback.');
-      }
-    }
-
-    video.addEventListener('ended', () => {
-      if (currentIndex + 1 < streams.length) {
-        playStream(currentIndex + 1);
-      }
+  function createList() {
+    streams.forEach((url, i) => {
+      const li = document.createElement('li');
+      li.textContent = `Stream ${i + 1}`;
+      li.onclick = () => play(i);
+      if (i === current) li.classList.add('active');
+      listEl.appendChild(li);
     });
-  </script>
+  }
+
+  function highlight() {
+    Array.from(listEl.children).forEach((li, i) => {
+      li.classList.toggle('active', i === current);
+    });
+  }
+
+  function play(i) {
+    current = i;
+    const url = streams[i];
+    if (hls) hls.destroy();
+
+    if (Hls.isSupported()) {
+      hls = new Hls();
+      hls.loadSource(url);
+      hls.attachMedia(video);
+      hls.on(Hls.Events.MANIFEST_PARSED, () => video.play());
+    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      video.src = url;
+      video.play();
+    } else {
+      alert("HLS not supported");
+    }
+
+    highlight();
+  }
+
+  video.addEventListener('ended', () => {
+    const next = current + 1;
+    if (streams[next]) play(next);
+  });
+
+  // Initialize
+  createList();
+  play(0);
+</script>
+
 </body>
 </html>
